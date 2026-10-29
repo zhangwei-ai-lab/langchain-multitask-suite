@@ -35,13 +35,22 @@ SAMPLES = {
 DEFAULT_TASK = SAMPLES["analysis"]
 
 _agent = None
+_agent_llm_id: int | None = None
 
 
 def build():
-    """懒加载单例：同一个进程内复用同一个 Agent 实例。"""
-    global _agent
-    if _agent is None:
-        _agent = build_agent(get_llm(temperature=0.0), TEXT_TOOLS, SYSTEM_PROMPT)
+    """懒加载单例：同一后端内复用同一个 Agent 实例。
+
+    单例必须跟着「当前模型实例」走，不能只判断 `_agent is None`：
+    Web 界面支持运行时切换本地/云端后端，`get_llm()` 会返回新实例，
+    而旧 Agent 里绑的还是旧模型 —— 不比较实例的话，界面上切了后端却还在用旧的，
+    日志里看不出异常，只会觉得「怎么切了没反应」。
+    """
+    global _agent, _agent_llm_id
+    llm = get_llm(temperature=0.0)
+    if _agent is None or _agent_llm_id != id(llm):
+        _agent = build_agent(llm, TEXT_TOOLS, SYSTEM_PROMPT)
+        _agent_llm_id = id(llm)
     return _agent
 
 

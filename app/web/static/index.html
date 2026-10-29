@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LangChain 多任务控制台</title>
+<link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">LC</div>
+    <div class="brand-text">
+      <h1>LangChain 多任务控制台</h1>
+      <p class="sub">本地 Ollama 与云端 API 双后端 · 六类任务统一入口</p>
+    </div>
+  </div>
+
+  <div class="backend" id="backendBox">
+    <span class="dot" id="backendDot"></span>
+    <span class="backend-text" id="backendText">正在探测后端…</span>
+  </div>
+
+  <div class="controls">
+    <div class="segmented" id="providerSwitch" role="group" aria-label="模型后端">
+      <button type="button" data-provider="auto" class="active">自动</button>
+      <button type="button" data-provider="ollama">本地</button>
+      <button type="button" data-provider="cloud">云端</button>
+    </div>
+    <select id="modelSelect" class="model-select" title="选择模型（留空为自动挑选）">
+      <option value="">自动挑选模型</option>
+    </select>
+    <button type="button" id="btnTest" class="ghost">测试连接</button>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- 左侧：能力清单 -->
+  <aside class="panel tasks">
+    <h2>能力</h2>
+    <div id="taskList" class="task-list">
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+      <div class="skeleton"></div>
+    </div>
+    <div class="divider"></div>
+    <h2>产物</h2>
+    <button type="button" id="btnReports" class="report-btn">
+      <span>运行报告</span><span class="badge" id="reportCount">0</span>
+    </button>
+    <p class="tiny">诊断与验收报告写在 outputs/ 目录，界面上可直接查看。</p>
+  </aside>
+
+  <!-- 中间：对话区 -->
+  <section class="panel conversation">
+    <div class="conv-head">
+      <div>
+        <h2 id="convTitle">通用对话</h2>
+        <p id="convDesc" class="conv-desc">可用工具：搜索 / 时间 / 计算 / 天气 / HTTP 探测</p>
+      </div>
+      <button type="button" id="btnReset" class="ghost small">清空会话</button>
+    </div>
+
+    <div id="messages" class="messages">
+      <div class="empty" id="emptyState">
+        <div class="empty-badge">开始</div>
+        <h3>选一个能力，或者直接提问</h3>
+        <p>左侧切换任务会改变助手使用的工具与提示词；通用对话适合随手问，
+           检索 / 换算 / 诊断走各自的专用 Agent，轨迹栏能看到它调了哪些工具。</p>
+      </div>
+    </div>
+
+    <form id="composer" class="composer">
+      <textarea id="input" rows="2" placeholder="输入问题，Enter 发送，Shift+Enter 换行"></textarea>
+      <div class="composer-foot">
+        <span id="hint" class="hint"></span>
+        <div class="actions">
+          <button type="button" id="btnSample" class="ghost small">填入示例</button>
+          <button type="submit" id="btnSend" class="primary">
+            <span id="btnSendLabel">发送</span>
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path d="M1.7 7.3 14 1.6 8.9 14l-1.7-5.1L1.7 7.3Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <!-- 右侧：轨迹 -->
+  <aside class="panel trace">
+    <h2>执行轨迹</h2>
+    <div id="traceList" class="trace-list">
+      <p class="placeholder">还没有工具调用</p>
+    </div>
+
+    <h2>本轮统计</h2>
+    <div class="stats">
+      <div class="stat"><span id="statTime">—</span><label>耗时</label></div>
+      <div class="stat"><span id="statTools">0</span><label>工具调用</label></div>
+      <div class="stat"><span id="statChars">0</span><label>回答字数</label></div>
+    </div>
+
+    <h2>说明</h2>
+    <p class="tip" id="tipBox">
+      自动模式先探本机 Ollama，探不到才用云端密钥。两种方式都可用，
+      切换不需要重启进程。
+    </p>
+  </aside>
+
+</main>
+
+<!-- 报告抽屉 -->
+<div id="reportModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="运行报告">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>运行报告</h3>
+      <button type="button" id="btnCloseReport" class="ghost small">关闭</button>
+    </div>
+    <div class="modal-body">
+      <div id="reportList" class="report-list"></div>
+      <pre id="reportContent" class="report-content">选择左侧报告查看内容</pre>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

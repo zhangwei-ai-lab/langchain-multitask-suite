@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 
 from . import config
-from .llm import LLMUnavailable, describe, get_llm, probe
+from .llm import LLMUnavailable, describe, explain_error, get_llm, probe
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -73,7 +73,15 @@ def cmd_doctor(_args) -> int:
             info["picked"] or "没有可用对话模型（向量模型会被自动排除）",
         )
     )
-    checks.append(("DashScope 密钥", info["dashscope_key"], "已配置" if info["dashscope_key"] else "未配置（非必需）"))
+    checks.append(
+        (
+            f"云端 API（{info['cloud']['base_url']}）",
+            info["cloud"]["has_key"],
+            f"已配密钥，默认模型 {info['cloud']['model']}"
+            if info["cloud"]["has_key"]
+            else "未配密钥（本地可用则不需要）",
+        )
+    )
 
     # 依赖与工具连通性
     try:
@@ -313,6 +321,13 @@ def cmd_netdiag(args) -> int:
     return 0
 
 
+def cmd_web(args) -> int:
+    """启动浏览器界面。和 `serve.py` 走同一份 launcher，参数不会漂移。"""
+    from .web.launcher import run
+
+    return run(host=args.host, port=args.port, reload=args.reload, open_browser=args.open)
+
+
 def cmd_verify(args) -> int:
     """转调验收脚本。
 
@@ -343,7 +358,12 @@ def build_parser() -> argparse.ArgumentParser:
         description="LangChain 多任务应用工程 —— 命令行入口",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
-            "示例：\n"
+            "模型后端（全局参数，写在子命令前面）：\n"
+            "  python main.py --provider ollama doctor   # 只用本地 Ollama\n"
+            "  python main.py --provider cloud doctor    # 只用云端 API\n"
+            "  python main.py --provider cloud --model deepseek-chat basic\n"
+            "\n示例：\n"
+            "  python main.py web              # 浏览器界面\n"
             "  python main.py doctor\n"
             "  python main.py basic\n"
             "  python main.py netdiag \"我打不开 https://github.com\"\n"
@@ -351,10 +371,25 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument("--no-trace", dest="trace", action="store_false", help="不打印工具调用轨迹")
+    # 这两个要放在子命令**前面**（argparse 的全局选项限制）：
+    #   python main.py --provider cloud doctor
+    # 界面顶栏的切换走 /api/provider，命令行走这里，两条路都落到 set_runtime_provider。
+    parser.add_argument(
+        "--provider",
+        help="模型后端：auto / ollama / cloud（覆盖 .env 的 LLM_PROVIDER）",
+    )
+    parser.add_argument("--model", help="模型名（覆盖 .env 的 LLM_MODEL）")
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("doctor", help="环境体检").set_defaults(func=cmd_doctor)
     sub.add_parser("tools", help="列出已注册工具").set_defaults(func=cmd_tools)
+
+    p = sub.add_parser("web", help="启动浏览器界面（默认 http://127.0.0.1:8000）")
+    p.add_argument("--host", default="127.0.0.1", help="监听地址")
+    p.add_argument("--port", type=int, default=8000, help="端口")
+    p.add_argument("--reload", action="store_true", help="改代码自动重启")
+    p.add_argument("--open", action="store_true", help="启动后自动打开浏览器")
+    p.set_defaults(func=cmd_web)
     sub.add_parser("basic", help="最小链 + 批量调用").set_defaults(func=cmd_basic)
     sub.add_parser("pipeline", help="LCEL 串行/并行/assign 编排").set_defaults(func=cmd_pipeline)
 
@@ -402,4 +437,22 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    return args.func(args) or 0
+    provider = getattr(args, "provider", None)
+    model = getattr(args, "model", None)
+    if provider or model:
+        from app.llm import set_runtime_provider
+
+        try:
+            set_runtime_provider(provider, model)
+        except ValueError as exc:
+            print(f"{exc}", file=sys.stderr)
+            return 2
+    try:
+        return args.func(args) or 0
+    except Exception as exc:  # noqa: BLE001
+        hint = explain_error(exc)
+        if hint is None:
+            raise
+        # 只把「看得懂的原因 + 下一步」打出来，不甩几十行 traceback
+        print(f"\n[模型调用失败] {hint}", file=sys.stderr)
+        return 1

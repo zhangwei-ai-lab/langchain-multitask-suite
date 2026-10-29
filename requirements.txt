@@ -9,14 +9,18 @@ langchain==1.4.7
 langchain-core==1.7.1
 langchain-ollama==1.1.0
 
-# 测试（离线用例，不依赖模型）
+# 云端模型：走 OpenAI 兼容协议，一套依赖覆盖 DashScope / DeepSeek / Kimi /
+# 智谱 / 硅基流动 / OpenAI 官方，换厂商只改 CLOUD_BASE_URL。
+langchain-openai==1.0.3
+
+# Web 界面（SSE 流式输出，不需要 WebSocket，也不需要 npm 构建）
+fastapi==0.121.2
+uvicorn==0.40.0
+
+# 测试（离线用例，不依赖模型；Web 用例用 TestClient 打桩）
 pytest==9.2.0
 
 # ---------------------------------------------------------------------------
-# 可选依赖：只在「没有本地 Ollama、改用阿里云百炼」时才需要
-# ---------------------------------------------------------------------------
-# langchain-community==0.4.1
-# dashscope==1.22.1
-#
 # 可选依赖：只在给 web_search 配 SerpAPI 时才需要
+# ---------------------------------------------------------------------------
 # google-search-results==2.4.2
