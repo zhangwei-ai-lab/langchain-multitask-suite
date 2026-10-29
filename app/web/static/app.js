@@ -221,6 +221,22 @@ function addError(container, message) {
   scrollToBottom();
 }
 
+/* 浏览器在「SSE 流读到一半连接断了」时抛的原文只有 `network error` /
+   `Failed to fetch` / `Load failed`，对用户等于没说。这几句翻成「发生了什么 + 怎么办」，
+   原始文案保留在括号里，方便报问题时贴给开发者。服务端返回的业务错误不走这里。 */
+function explainNetworkError(err) {
+  const raw = (err && err.message) || String(err || "未知错误");
+  if (/failed to fetch|network ?error|networkerror|load failed|err_connection|err_internet/i.test(raw)) {
+    return (
+      "与服务端的连接中断了（浏览器原文：" + raw + "）。" +
+      "常见原因：启动服务的命令行窗口被关闭或 Ctrl+C、用 --reload 时刚改过代码、电脑休眠或网络切换。" +
+      "处理：确认那个窗口还在运行且没有报错，然后刷新页面重试；" +
+      "已收到的内容不会丢，但这一轮需重新发送。"
+    );
+  }
+  return raw;
+}
+
 function scrollToBottom() {
   const box = $("#messages");
   box.scrollTop = box.scrollHeight;
@@ -366,7 +382,7 @@ async function send() {
       }
     });
   } catch (err) {
-    addError(wrap, err.message);
+    addError(wrap, explainNetworkError(err));
   } finally {
     timerStop();
     bubble.classList.remove("streaming");

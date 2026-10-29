@@ -61,6 +61,24 @@ def test_js_has_no_unbalanced_template_literal():
     assert code.count("`") % 2 == 0, "app.js 里反引号数量为奇数，多半是模板字符串没闭合"
 
 
+def test_js_translates_browser_network_errors():
+    """断流时浏览器只给 `network error` / `Failed to fetch`，照搬给用户等于没说。
+
+    这几条是实测抓到的真实原文（Chrome 在 SSE 流被掐断时抛的就是这两个），
+    改动 app.js 时若把翻译丢掉，界面会退回「这一轮没跑通 network error」。
+    """
+    code = (server.STATIC_DIR / "app.js").read_text(encoding="utf-8")
+
+    assert "function explainNetworkError(" in code, "缺少断线文案翻译函数"
+    # 三个真实原文都必须在匹配规则里
+    for raw in ("network ?error", "failed to fetch", "load failed"):
+        assert raw in code.lower(), f"未覆盖浏览器原文：{raw}"
+    # 主流程的 catch 必须走翻译，不能退回裸 err.message
+    assert "addError(wrap, explainNetworkError(err))" in code
+    assert "addError(wrap, err.message)" not in code
+
+
+
 # ------------------------------------------------------------------ 状态接口
 def test_status_returns_backend_tasks_and_cloud_info(client, monkeypatch):
     monkeypatch.setattr(
