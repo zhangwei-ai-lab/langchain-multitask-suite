@@ -1,0 +1,19 @@
+# 本地配置：由 .env.example 复制而来，可能含密钥，不入库
+.env
+.env.local
+
+# 运行产物：报告每次不同，作为证据保留在本地即可
+outputs/*.md
+!outputs/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 测试与编辑器
+.pytest_cache/
+.vscode/
+.idea/
+.DS_Store

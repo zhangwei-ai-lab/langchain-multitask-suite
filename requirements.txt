@@ -1,0 +1,22 @@
+# 实测通过的依赖（2026-10-29，Python 3.13.14 / Windows 11）
+# 安装：pip install -r requirements.txt
+#
+# 版本全部锁死的原因：LangChain 1.x 的 API 演进很快，
+# create_agent / RunnableWithMessageHistory / 提示词输入的隐式兜底都在小幅调整。
+# 换版本前先跑 `python -m pytest -q` 和 `python main.py verify --smoke`。
+
+langchain==1.4.7
+langchain-core==1.7.1
+langchain-ollama==1.1.0
+
+# 测试（离线用例，不依赖模型）
+pytest==9.2.0
+
+# ---------------------------------------------------------------------------
+# 可选依赖：只在「没有本地 Ollama、改用阿里云百炼」时才需要
+# ---------------------------------------------------------------------------
+# langchain-community==0.4.1
+# dashscope==1.22.1
+#
+# 可选依赖：只在给 web_search 配 SerpAPI 时才需要
+# google-search-results==2.4.2
