@@ -190,6 +190,37 @@ def test_provider_switch_rejects_unknown_value(client):
     assert "未知的后端" in res.json()["detail"]
 
 
+@pytest.mark.parametrize("payload", [{"provider": "cloud"}, {"provider": "cloud", "model": None}])
+def test_provider_switch_accepts_blank_model(client, payload):
+    """回归：请求体把 model 定义成非空 str 时，前端清空输入框发的 null 会 422，
+    表现是「切后端 / 清空模型名点了没反应」。留空表示回到自动挑选，必须合法。"""
+    res = client.post("/api/provider", json=payload)
+    assert res.status_code == 200, res.text
+    assert res.json()["runtime_model"] is None
+
+
+def test_any_user_typed_model_name_is_accepted(client, monkeypatch):
+    """模型名不是枚举：用户手敲的名字（包括候选列表里没有的）都要照收，
+    能不能用由厂商回答，前端不做白名单。"""
+    from app import llm
+
+    # probe 反映的是真实运行时状态，不是写死的字典 —— 否则测的是假数据
+    monkeypatch.setattr(
+        server,
+        "probe",
+        lambda cloud=False: {
+            "runtime_provider": llm.runtime_provider(),
+            "runtime_model": llm.runtime_model(),
+            "backend": "",
+            "backend_info": None,
+        },
+    )
+    res = client.post("/api/provider", json={"provider": "cloud", "model": "my-company-llm-v9"})
+    assert res.status_code == 200
+    assert res.json()["runtime_model"] == "my-company-llm-v9"
+    assert llm.runtime_model() == "my-company-llm-v9"
+
+
 def test_provider_switch_updates_runtime_state(client, monkeypatch):
     monkeypatch.setattr(
         server,

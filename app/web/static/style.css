@@ -148,7 +148,14 @@ p { margin: 0; }
   border-radius: 8px;
   background: var(--panel);
   color: var(--text);
+  width: 208px;
   max-width: 230px;
+}
+input.model-select::placeholder { color: var(--muted-soft); }
+input.model-select:focus {
+  outline: none;
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 button.ghost {
@@ -608,11 +615,13 @@ button.primary svg { margin-top: -1px; }
     overflow-y: hidden;
     padding-bottom: 2px;
   }
-  .task { flex: 0 0 auto; width: 150px; }
+  .task { flex: 0 0 auto; width: 124px; }
   .task .t-desc { display: none; }
   .tasks .tiny { display: none; }
   .topbar { gap: 10px; padding: 10px 12px; }
-  .controls { margin-left: 0; }
+  /* 窄屏顶栏要能换行：模型输入框允许收缩，否则占位文字被截成半句 */
+  .controls { margin-left: 0; flex-wrap: wrap; row-gap: 8px; }
+  .model-select { flex: 1 1 132px; width: auto; min-width: 0; max-width: none; }
   .modal-body { grid-template-columns: 1fr; }
   .report-list { max-height: 140px; border-right: 0; border-bottom: 1px solid var(--border); }
 }

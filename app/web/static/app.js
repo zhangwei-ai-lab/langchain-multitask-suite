@@ -68,43 +68,33 @@ function renderBackend(info) {
 }
 
 function fillModelOptions(info) {
-  const select = $("#modelSelect");
-  const keep = state.model || select.value || "";
-  const groups = [];
+  // 候选列表只是「提示」，不是白名单：用户手敲的名字一律照用，
+  // 敲错了由厂商返回 404，界面再翻译成人话 —— 比前端偷偷拦掉更诚实。
+  const list = $("#modelList");
+  const input = $("#modelInput");
+  const known = new Set();
 
   const local = (info.local_models || []).slice();
-  if (local.length) {
-    groups.push({ label: "本地 Ollama", items: local });
-  }
   const cloudModels = (info.cloud && info.cloud.models) || [];
-  if (cloudModels.length) {
-    // 云端模型动辄上百个，只挑常用对话模型，避免下拉框长得没法用
-    const preferred = cloudModels.filter((m) => /^(qwen|deepseek|kimi|glm|gpt)/i.test(m));
-    groups.push({ label: "云端 API", items: (preferred.length ? preferred : cloudModels).slice(0, 40) });
-  }
-  if (info.cloud && info.cloud.model) {
-    groups.push({ label: "云端默认", items: [info.cloud.model] });
-  }
+  const preferred = cloudModels.filter((m) => /^(qwen|deepseek|kimi|glm|gpt|moonshot)/i.test(m));
 
-  select.innerHTML = "";
-  const auto = document.createElement("option");
-  auto.value = "";
-  auto.textContent = "自动挑选模型";
-  select.appendChild(auto);
+  list.innerHTML = "";
+  const addOption = (value, label) => {
+    if (known.has(value)) return;
+    known.add(value);
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.label = label ? `${label}｜${value}` : value;
+    list.appendChild(opt);
+  };
 
-  groups.forEach((group) => {
-    const og = document.createElement("optgroup");
-    og.label = group.label;
-    group.items.forEach((name) => {
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      og.appendChild(opt);
-    });
-    select.appendChild(og);
-  });
+  local.forEach((name) => addOption(name, "本地"));
+  (preferred.length ? preferred : cloudModels).slice(0, 60).forEach((name) => addOption(name, "云端"));
+  if (info.cloud && info.cloud.model) addOption(info.cloud.model, "云端默认");
 
-  if (keep && [...select.options].some((o) => o.value === keep)) select.value = keep;
+  // 占位固定成短句：当前用哪个模型顶栏徽标已经写了，占位里再塞一遍
+  // 只会在窄屏被截成「自动挑选（当前 qwen3-8b-loca」，反而更难读。
+  if (!state.model) input.value = "";
 }
 
 function renderProviderSwitch(info) {
@@ -524,6 +514,10 @@ function bind() {
       const provider = btn.dataset.provider;
       const before = state.provider;
       state.provider = provider;
+      // 换后端 = 换模型来源：本地的 `qwen3:8b` 拿到云端就是 404。
+      // 与其让用户撞上「切完就报错」，不如直接回到自动挑选，想指定再自己敲。
+      state.model = null;
+      if ($("#modelInput")) $("#modelInput").value = "";
       $$("#providerSwitch button").forEach((b) => b.classList.toggle("active", b === btn));
       try {
         const res = await requestJSON("/api/provider", {
@@ -542,19 +536,34 @@ function bind() {
     });
   });
 
-  $("#modelSelect").addEventListener("change", async (e) => {
-    state.model = e.target.value;
+  const modelInput = $("#modelInput");
+  const applyModel = async () => {
+    const name = modelInput.value.trim();
+    if (name === (state.model || "")) return;
+    state.model = name || null;
     try {
       const res = await requestJSON("/api/provider", {
         method: "POST",
         body: JSON.stringify({ provider: state.provider, model: state.model }),
       });
       toast(`模型已设为：${res.runtime_model || "自动挑选"}`);
-      await loadStatus(false);
+      // /api/provider 的字段叫 backend，renderBackend 认的是 backend_info，转一手
+      if (res.backend) renderBackend({ backend_info: res.backend });
     } catch (err) {
       toast(`设置模型失败：${err.message}`, true);
     }
+  };
+
+  // 手敲回车 / 从候选里点选 / 点「应用」，三个入口走同一条路
+  modelInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      modelInput.blur();
+      applyModel();
+    }
   });
+  modelInput.addEventListener("change", applyModel);
+  $("#btnApplyModel").addEventListener("click", applyModel);
 
   $("#btnTest").addEventListener("click", async () => {
     const btn = $("#btnTest");

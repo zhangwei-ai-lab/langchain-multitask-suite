@@ -61,7 +61,9 @@ class TaskRequest(BaseModel):
 
 class ProviderRequest(BaseModel):
     provider: str = Field(default="auto", max_length=16)
-    model: str = Field(default="", max_length=128)
+    # 必须允许 None：前端清空输入框时发的就是 null，表示「回到自动挑选」。
+    # 写成 str 会让这条请求直接 422，用户看到的是「切后端没反应」。
+    model: str | None = Field(default=None, max_length=128)
 
 
 # ---------------------------------------------------------------- SSE 封装

@@ -28,9 +28,21 @@
       <button type="button" data-provider="ollama">本地</button>
       <button type="button" data-provider="cloud">云端</button>
     </div>
-    <select id="modelSelect" class="model-select" title="选择模型（留空为自动挑选）">
-      <option value="">自动挑选模型</option>
-    </select>
+    <!-- 用 input + datalist 而不是 select：模型名不是固定枚举，
+         厂商随时会出新模型，用户也常要用列表里没有的名字。
+         既能从候选里点，也能直接手敲。留空 = 自动挑选。 -->
+    <input
+      type="text"
+      id="modelInput"
+      class="model-select"
+      list="modelList"
+      spellcheck="false"
+      autocomplete="off"
+      placeholder="模型名（留空自动）"
+      title="从候选里选，或直接输入任意模型名；回车生效，留空为自动挑选"
+    />
+    <datalist id="modelList"></datalist>
+    <button type="button" id="btnApplyModel" class="ghost" title="应用模型名">应用</button>
     <button type="button" id="btnTest" class="ghost">测试连接</button>
   </div>
 </header>
